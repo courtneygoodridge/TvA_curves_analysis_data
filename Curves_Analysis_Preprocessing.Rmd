@@ -1,0 +1,308 @@
+---
+title: "Untitled"
+author: "Courtney Goodridge"
+date: "10/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages
+
+```{r}
+if(!require(here)) install.packages("here")
+library(here)
+
+if(!require(tidyr)) install.packages("tidyr")
+library(tidyr)
+
+if(!require(dplyr)) install.packages("dplyr")
+library(dplyr)
+
+if(!require(plyr)) install.packages("plyr")
+library(plyr)
+
+if(!require(ggplot2)) install.packages("ggplot2")
+library(ggplot2)
+
+if(!require(signal)) install.packages("signal")
+library(signal)
+
+if(!require(Rmisc)) install.packages("Rmisc")
+library(Rmisc)
+
+if(!require(purrr)) install.packages("purrr")
+library(purrr)
+
+if(!require(stringr)) install.packages("stringr")
+library(stringr)
+
+if(!require(lme4)) install.packages("lme4")
+library(lme4)
+
+if(!require(lmerTest)) install.packages("lmerTest")
+library(lmerTest)
+
+if(!require(data.table)) install.packages("data.table")
+library(data.table)
+
+if(!require(readr)) install.packages("readr")
+library(readr)
+```
+
+## Loading data from first testing session
+
+```{r}
+myfiles = list.files(path = here::here("Participant_Data/Session_1"), pattern = c("Curves.Startingpos"), full.names = TRUE)
+
+dat  <- ldply(myfiles, read_csv)
+```
+
+## loading data from second session
+
+```{r}
+# participant 9
+myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_9"), full.names = TRUE)
+dat_9 <- ldply(myfiles, read_csv) %>%
+  dplyr::mutate(pNum = 9)
+
+# participant 10
+myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_10"), full.names = TRUE)
+dat_10 <- ldply(myfiles, read_csv) %>%
+  dplyr::mutate(pNum = 10)
+
+# participant 11
+myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_11"), full.names = TRUE)
+dat_11 <- ldply(myfiles, read_csv) %>%
+  dplyr::mutate(pNum = 11)
+
+# participant 12
+myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_12"), full.names = TRUE)
+dat_12 <- ldply(myfiles, read_csv) %>%
+  dplyr::mutate(pNum = 12)
+```
+
+## Generating participant number tag
+
+Use str_detect() function to highlight when fixed is within the ppid column. Negate = TRUE argument returns true when pattern doesn't match. 
+
+```{r}
+dat_new <- dat %>%
+  dplyr::mutate(pNum = case_when(str_detect(ppid, "lot_1") ~ 1,
+                                 str_detect(ppid, "lot_2") ~ 2,
+                                 str_detect(ppid, "lot_3") ~ 3,
+                                 str_detect(ppid, "lot_4") ~ 4,
+                                 str_detect(ppid, "lot_5") ~ 5,
+                                 str_detect(ppid, "lot_6") ~ 6,
+                                 str_detect(ppid, "lot_7") ~ 7,
+                                 str_detect(ppid, "lot_8") ~ 8)) %>%
+  dplyr::bind_rows(dat_9, dat_10, dat_11, dat_12) %>%
+  dplyr::mutate(ppid_trialn = paste(trialn, pNum, radius, startingpos,  sep = "_"))
+```
+
+## Total number of trials
+
+used to calculate percentage of trials per condition
+
+```{r}
+total.trials <- dat_new %>%
+  dplyr::group_by(ppid_trialn) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup() %>%
+  dplyr::filter(radius != -1) %>%
+  dplyr::group_by(radius, startingpos) %>%
+  dplyr::summarise(total = n())
+
+write.csv(total.trials, file = here::here("Participant_Data/total_trials.csv"))
+```
+
+## Mirroring directional variables, smoothing steering repsonses, and recentre origin of X and Z coordinates
+
+```{r}
+dat.visible.line <- dat_new %>%
+  dplyr::group_by(ppid_trialn) %>%
+  dplyr::mutate(BendVisible = case_when(BendVisible == FALSE ~ 1,
+                                        BendVisible == TRUE ~ 2)) %>%
+  dplyr::filter(radius != -1) %>%
+  dplyr::filter(BendVisible == 2) %>%
+  dplyr::mutate(frame = row_number()) %>% 
+  dplyr::mutate(timestamp = frame / 60) %>%
+  dplyr::mutate(SWA = case_when(direction == "L" ~ SWA * -1,
+                                    direction == "R" ~ SWA)) %>%
+  dplyr::mutate(YawRate_seconds = case_when(direction == "L" ~ YawRate_seconds * -1, 
+                                            direction == "R"~ YawRate_seconds)) %>%
+  dplyr::mutate(DiffYawRate_seconds = c(0, diff(YawRate_seconds))) %>%
+  dplyr::mutate(DiffYawRate_seconds = sgolayfilt(DiffYawRate_seconds, n = 11)) %>%
+  dplyr::mutate(steering_rate = c(0, diff(SWA))) %>%
+  dplyr::mutate(steering_rate = sgolayfilt(steering_rate, n = 11)) %>%
+  dplyr::mutate(World_x_new = World_x - World_x[1]) %>%
+  dplyr::mutate(World_z_new = World_z - World_z[1]) %>%
+  dplyr::ungroup()
+```
+
+## Transforming x and z coordinates from world to local
+
+```{r}
+dat.visible.line <- dat.visible.line %>%
+  dplyr::group_by(ppid_trialn) %>%
+  dplyr::mutate(WorldYaw_rads = WorldYaw / 180 * pi) %>%
+  dplyr::mutate(rotatedX = World_x_new * cos(WorldYaw_rads[1]) - World_z_new * sin(WorldYaw_rads[1])) %>%
+  dplyr::mutate(rotatedZ = World_x_new * sin(WorldYaw_rads[1]) +  World_z_new * cos(WorldYaw_rads[1])) %>%
+  dplyr::mutate(rotatedX = case_when(direction == "L" ~ rotatedX * -1,
+                                     direction == "R" ~ rotatedX)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(ppid_trialn, startingpos) %>%
+  dplyr::mutate(rotatedZ = rotatedZ + startingpos) %>%
+  dplyr::arrange(ppid_trialn, frame)
+```
+
+## Computing reaction times
+
+```{r}
+"threshold metrics"
+upperthreshold <-  0.05 # upper threshold for consistent steering response
+lowerthreshold <-  0.02 # lower threshold for when response is initiated
+
+"selecting steering onset"
+steering_onset <- dat.visible.line %>%
+  dplyr::select(ppid_trialn, pNum, radius, startingpos, timestamp, steering_rate, SWA, DiffYawRate_seconds, rotatedX, rotatedZ, frame) %>%
+  dplyr::group_by(ppid_trialn) %>%
+  dplyr::filter(max(steering_rate) > upperthreshold) %>%
+  dplyr::slice(min(which(steering_rate > lowerthreshold, 1))) %>%
+  dplyr::ungroup() %>%
+  dplyr::transmute(ppid_trialn, pNum, radius, startingpos, rt = timestamp, steering_rate, SWA, DiffYawRate_seconds, rotatedX, rotatedZ, frame) 
+```
+
+## Computing max steering rate
+
+I use the participants ID from the steering onset dataframe to filter a timecourse of conditions that only include trials where participants made a steering response. 
+
+```{r}
+"filtering valid timecourses"
+onset_responses <- steering_onset$ppid_trialn 
+onset_responses <- as.vector(onset_responses) 
+
+onset.timecourse <- dplyr::filter(dat.visible.line, ppid_trialn %in% onset_responses) 
+
+steering_peak <- onset.timecourse %>%
+  dplyr::select(ppid_trialn, radius, startingpos, timestamp, steering_rate, SWA, DiffYawRate_seconds, rotatedX, rotatedZ, frame) %>%
+  dplyr::group_by(ppid_trialn) %>%
+  dplyr::mutate(max_steering_rate = max(steering_rate)) %>% 
+  dplyr::slice(max(which(steering_rate == max_steering_rate))) %>%
+  dplyr::transmute(peak.sr = steering_rate)
+```
+
+## Computing max steering wheel angle
+
+```{r}
+steering_swa <- onset.timecourse %>%
+  dplyr::select(ppid_trialn, radius, startingpos, timestamp, steering_rate, SWA, DiffYawRate_seconds, rotatedX, rotatedZ, frame) %>%
+  dplyr::group_by(ppid_trialn) %>%
+  dplyr::mutate(maxSWA = max(SWA)) %>% 
+  dplyr::slice(max(which(SWA == maxSWA))) %>%
+  dplyr::transmute(peak.swa = SWA)
+```
+
+## Midlines
+
+generating midlines for different radii curves
+
+```{r}
+RUN RADII_MIDLINE FILE from this chunk.
+```
+
+# Computing steering bias
+
+In the following code, I will specify the function that calculates steering bias, and then compute this for Richard's data. This function is computationally heavy and thus I will only calculate steering bias at steering onset i.e. the amount of lateral area at the moment of the response. 
+
+Steering bias for all radii/starting position conditions visually support the hypothesis. 
+
+```{r}
+"calculation of steering bias function"
+calc <- function(df, midline, ind){
+  # selects the point in the midline closest to the current position in the world 
+  
+  midlinedist = sqrt(
+    ((df$rotatedX[ind] - midline[,2])**2)
+    +((df$rotatedZ[ind] - midline[,3])**2)
+  ) 
+  mid = as.numeric(unlist(midlinedist))
+  
+  idx = which.min((abs(mid))) #find smallest difference. This is the closest index on the midline.
+  
+  closestpt = midline[idx, 2:3] #xy of closest point
+  dist = midlinedist[idx, ] #distance from closest point				
+  origin = midline[1, 2:3]
+  
+  #Sign bias from assessing if the closest point on midline is closer to the track origin than the driver position. 
+  #Since the track is an oval, closer = understeering, farther = oversteering.
+  
+  middist_from_origin = sqrt(
+    ((closestpt[1] - origin[1])**2)
+    +((closestpt[2]-origin[2])**2)
+  )  #distance of midline to origin
+  
+  pos_from_trackorigin = sqrt(
+    ((df$rotatedX[ind] - origin[1])**2)
+    +((df$rotatedZ[ind] - origin[2])**2)
+  ) #distance of driver position to origin
+  
+  #if driver distance is greater than closest point distance, steering position should be understeering
+  distdiff = middist_from_origin - pos_from_trackorigin 
+  steeringbias = dist * sign(distdiff)
+  steeringbias = as.numeric(as.character(unlist(steeringbias)))
+  
+  return(steeringbias)
+}
+
+"iteration of steering bias function"
+iterate_bias <- function(df = steerdata){
+  "select the appropriate midline, calculate steering bias per row"
+  steeringbias <- vector(mode = "numeric", length = length(df$X))
+  for(i in 1:length(df$X)){
+    
+    # select midline array
+    if(df$radius[i] == 1000){
+      midline = midline_1000
+      }
+    else if(df$radius[i] == 1500){
+      midline = midline_1500
+    }
+    else{
+      midline = midline_2000
+    }
+      
+    steeringbias[[i]] <- calc(df, midline, ind = i)
+    }
+  return(steeringbias)
+}
+
+steering_onset <- steering_onset %>%
+  dplyr::mutate(X = row_number())
+
+steering_onset$steeringbias <- iterate_bias(df = steering_onset)
+
+steering_onset <- steering_onset %>%
+  dplyr::mutate(steeringbias = abs(steeringbias))
+
+"combinding overall data"
+overall.dat <- merge(steering_onset, steering_peak, by = "ppid_trialn")
+
+overall.dat <- merge(overall.dat, steering_swa, by = "ppid_trialn")
+```
+
+## Rescalling radius, removing removes that are too early/too late, and saving processed data/timecourse
+
+Because radius is in the thousands and starting position is either 0, 4 or 8 m, I need rescale radius in order for the model to converge.
+
+```{r}
+# scaling predictor variables
+overall.dat <- overall.dat %>%
+  dplyr::mutate(radius_scaled = scale(radius), 
+                startingpos_scaled = scale(startingpos)) 
+# data saving
+write.csv(overall.dat, file = here::here("Participant_Data/overall_dat.csv"))
+write.csv(onset.timecourse, file = here::here("Participant_Data/onset_timecourse.csv"))
+```
