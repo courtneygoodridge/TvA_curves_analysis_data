@@ -50,12 +50,16 @@ library(data.table)
 
 if(!require(readr)) install.packages("readr")
 library(readr)
+
+if(!require(rmarkdown)) install.packages("rmarkdown")
+library(rmarkdown)
 ```
 
 ## Loading data from first testing session
 
 ```{r}
-myfiles = list.files(path = here::here("Participant_Data/Session_1"), pattern = c("Curves.Startingpos"), full.names = TRUE)
+# data from participants 1-8
+myfiles = list.files(path = here::here("TvA_curves_analysis_data/Participant_Data/Session_1"), pattern = c("Curves.Startingpos"), full.names = TRUE)
 
 dat  <- ldply(myfiles, read_csv)
 ```
@@ -64,22 +68,22 @@ dat  <- ldply(myfiles, read_csv)
 
 ```{r}
 # participant 9
-myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_9"), full.names = TRUE)
+myfiles = list.files(path = here::here("TvA_curves_analysis_data/Participant_Data/Session_2"), pattern = c("Startingpos_9"), full.names = TRUE)
 dat_9 <- ldply(myfiles, read_csv) %>%
   dplyr::mutate(pNum = 9)
 
 # participant 10
-myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_10"), full.names = TRUE)
+myfiles = list.files(path = here::here("TvA_curves_analysis_data/Participant_Data/Session_2"), pattern = c("Startingpos_10"), full.names = TRUE)
 dat_10 <- ldply(myfiles, read_csv) %>%
   dplyr::mutate(pNum = 10)
 
 # participant 11
-myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_11"), full.names = TRUE)
+myfiles = list.files(path = here::here("TvA_curves_analysis_data/Participant_Data/Session_2"), pattern = c("Startingpos_11"), full.names = TRUE)
 dat_11 <- ldply(myfiles, read_csv) %>%
   dplyr::mutate(pNum = 11)
 
 # participant 12
-myfiles = list.files(path = here::here("Participant_Data/Session_2"), pattern = c("Startingpos_12"), full.names = TRUE)
+myfiles = list.files(path = here::here("TvA_curves_analysis_data/Participant_Data/Session_2"), pattern = c("Startingpos_12"), full.names = TRUE)
 dat_12 <- ldply(myfiles, read_csv) %>%
   dplyr::mutate(pNum = 12)
 ```
@@ -115,7 +119,7 @@ total.trials <- dat_new %>%
   dplyr::group_by(radius, startingpos) %>%
   dplyr::summarise(total = n())
 
-write.csv(total.trials, file = here::here("Participant_Data/total_trials.csv"))
+write.csv(total.trials, file = here::here("TvA_curves_analysis_data/Participant_Data/total_trials.csv"))
 ```
 
 ## Mirroring directional variables, smoothing steering repsonses, and recentre origin of X and Z coordinates
@@ -159,6 +163,8 @@ dat.visible.line <- dat.visible.line %>%
 ```
 
 ## Computing reaction times
+
+steering_onset dataframe contains relevant steering and positional metrics at the point where a steering response is made. 
 
 ```{r}
 "threshold metrics"
@@ -205,12 +211,12 @@ steering_swa <- onset.timecourse %>%
   dplyr::transmute(peak.swa = SWA)
 ```
 
-## Midlines
+## Generate midlines for caluating lateral position of driver
 
 generating midlines for different radii curves
 
 ```{r}
-RUN RADII_MIDLINE FILE from this chunk.
+rmarkdown::render(here::here("TvA_curves_analysis_data/Midline_Data/radii_midline.Rmd"))
 ```
 
 # Computing steering bias
@@ -303,6 +309,5 @@ overall.dat <- overall.dat %>%
   dplyr::mutate(radius_scaled = scale(radius), 
                 startingpos_scaled = scale(startingpos)) 
 # data saving
-write.csv(overall.dat, file = here::here("Participant_Data/overall_dat.csv"))
-write.csv(onset.timecourse, file = here::here("Participant_Data/onset_timecourse.csv"))
+write.csv(overall.dat, file = here::here("TvA_curves_analysis_data/Participant_Data/overall_dat.csv"))
 ```
