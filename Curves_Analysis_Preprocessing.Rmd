@@ -9,6 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### 
+
+This analysis script is the paper entitled "Error accumulation when steering toward curves". Please copy or clone the TvA_curves_analysis_data folder in your working directory. To find your working directory, run the *getwd()* function in the R command line. 
+
+Following this, run each chunk of code individually. The main data file (overall.dat.csv) is alreayd processed and is generated from this script. I only include this file for completeness. The main analysis and figure plotting can done from the Curves_Analysis_Modelling_And_Plots.Rmd.
+
 ## Load packages
 
 ```{r}
