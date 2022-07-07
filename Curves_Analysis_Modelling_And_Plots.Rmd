@@ -76,9 +76,7 @@ library(readr)
 ## Load in processed data
 
 ```{r}
-overall.dat <- read.csv(here::here("Participant_Data/overall_dat.csv"))
-
-onset.timecourse <- read.csv(here::here("Participant_Data/onset_timecourse.csv"))
+overall.dat <- read.csv(here::here("TvA_curves_analysis_data/Participant_Data/overall_dat.csv"))
 ```
 
 ## Removing participants 8 and 10
@@ -96,7 +94,7 @@ overall.dat <- overall.dat %>%
 percentage of valid trials within each condition. 
 
 ```{r}
-total.trials <- read.csv(here::here("Participant_Data/total_trials.csv")) %>%
+total.trials <- read.csv(here::here("TvA_curves_analysis_data/Participant_Data/total_trials.csv")) %>%
   dplyr::select(total)
 
 too.fast <- overall.dat %>%
@@ -676,7 +674,7 @@ invgaus.sb <- glmer(steeringbias ~ radius_scaled * startingpos_scaled +(radius_s
                           dplyr::filter(rt > .15))
 
 ## assessing AICs
-AIC(gaus.sb, gamma.sb, invgaus.sb)
+AIC(gaus.sb, gamma.sb)
 
 ## is the model singular - interaction random effect has very low variance
 isSingular(gamma.sb)
