@@ -119,7 +119,8 @@ panel.background = element_blank(), axis.line = element_line(colour = "black"))
 ## generating midline for manuscript figures
 
 ```{r}
-# dataframe for all 3 midlines
+"dataframe for all 3 midlines"
+rmarkdown::render(here::here("TvA_curves_analysis_data/Midline_Data/radii_midline.Rmd"))
 midline <- dplyr::bind_rows(midline_1000, midline_1500, midline_2000) %>%
   dplyr::rename(radius = radii)
 ```
