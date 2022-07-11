@@ -59,7 +59,7 @@ Simulation of driver travelling across the z axis (straight ahead) for 0, 4 and 
 
 ```{r}
 "load coordinates"
-latency.1000 <- read.csv(here::here("TvA_curves_analysis_data/Midline_Data/Curves.Startingpos_radius_2000_latency.csv")) %>%
+latency.1000 <- read.csv(here::here("TvA_curves_analysis_data/Midline_Data/Curves.Startingpos_radius_1500_latency.csv")) %>%
   dplyr::mutate(trialid = paste(ppid, trialn, sep = "_")) %>%
   dplyr::mutate(LineVis = case_when(BendVisible == "True" ~ TRUE,
                                     BendVisible == "False" ~ FALSE)) %>%
@@ -147,13 +147,49 @@ Here I compute steering bias at the position a driver would be relative to the r
 
 3) the resulting lateral position error would be the result if drivers responded at a fixed lateral position error and under a 150 ms 
 
-**TO DO**
 
-WORK OUT HOW TO FILTER FOR TIMESTAMP OF 0.15 s WITHIN EACH DATAFRAME WITHIN EACH LIST.
+```{r}
+"calculation of visual angle looking through curve"
+calc_visangle <- function(df, midline, ind){
+  # selects the point in the midline closest to the current position in the world 
+  
+  midlinedist = sqrt(
+    ((df$x[ind] - midline[,2])**2)
+    +((df$z[ind] - midline[,3] + 10)**2)
+  ) 
+mid = as.numeric(unlist(midlinedist))
 
-How the motor latency will be at the point they respond, not initially, and rate of change in lateral position error increase will change as they move across the z axis.
+idx = which.min((abs(mid))) # find smallest difference, closest index on the midline
 
-So I need to pick an artificial fixed threshold (say 0.02 m) and then calculate 150 ms beyond this point, plot the lateral position errors within each radii/starting position condition, and then see 1) if the pattern/magnitude of results is similar to Accumulator.
+closestpt = midline[idx, 2:3] # closest point b
+
+x_dist = abs(df$x[ind] - closestpt[1])
+z_dist = abs(df$z[ind] - closestpt[2])
+vis_angle_corrected = tan(x_dist / z_dist) #distance from closest point
+  
+  return(vis_angle_corrected)
+}
+
+
+latency.1000.8$visangle_rads <- iterate_bias(df = latency.1000.8)
+
+latency.1000.8 <- latency.1000.8 %>%
+  dplyr::mutate(visangle_rads = abs(visangle_rads)) %>%
+  dplyr::mutate(visangle = visangle_rads * 180/pi)
+
+ggplot(as.data.frame(latency.list[[1]]) %>%
+         dplyr::filter(timestamp < 2), mapping = aes(x = timestamp, y = visangle)) +
+  geom_path()
+
+ggplot(as.data.frame(latency.list[[1]]) %>%
+         dplyr::filter(timestamp < 2), mapping = aes(x = timestamp, y = steeringbias)) +
+  geom_path()
+
+
+
+```
+
+## Steering bias function 
 
 ```{r}
 "calculation of steering bias function"
@@ -197,6 +233,7 @@ calc <- function(df, midline, ind){
 iterate_bias <- function(df = steerdata){
   "select the appropriate midline, calculate steering bias per row"
   steeringbias <- vector(mode = "numeric", length = length(df$X))
+  vis_angle_corrected <- vector(mode = "numeric", length = length(df$X))
   for(i in 1:length(df$X)){
     
     # select midline array
@@ -211,69 +248,166 @@ iterate_bias <- function(df = steerdata){
     }
       
     steeringbias[[i]] <- calc(df, midline, ind = i)
+    vis_angle_corrected[[i]] <- calc(df, midline, ind = i)
     }
   return(steeringbias)
+  return(vis_angle_corrected)
+}
+
+"iteration of visual angle function"
+iterate_angle <- function(df = steerdata){
+  "select the appropriate midline, calculate steering bias per row"
+  vis_angle_corrected <- vector(mode = "numeric", length = length(df$X))
+  for(i in 1:length(df$X)){
+    
+    # select midline array
+    if(df$radius[i] == 1000){
+      midline = midline_1000
+      }
+    else if(df$radius[i] == 1500){
+      midline = midline_1500
+    }
+    else{
+      midline = midline_2000
+    }
+    
+    vis_angle_corrected[[i]] <- calc(df, midline, ind = i)
+    }
+  return(vis_angle_corrected)
 }
 
 "create empty list for dataframes"
 latency.list <- vector(mode = "list", length = 9)
 
-"for each data frame in the list, coompute the steering bias"
+"for each data frame in the list, compute the steering bias and visual angle"
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latencies[i])
   
   latencies_tmp$steeringbias <- iterate_bias(df = latencies_tmp)
+  latencies_tmp$vis_angle_corrected <- iterate_angle(df = latencies_tmp)
   
   latencies_tmp <- latencies_tmp %>%
-    dplyr::mutate(steeringbias = abs(steeringbias))
+    dplyr::mutate(steeringbias = abs(steeringbias)) %>%
+    dplyr::mutate(visangle_rads = abs(vis_angle_corrected)) %>%
+    dplyr::mutate(visangle = visangle_rads * 180/pi) %>%
+    dplyr::filter(frame != 26) %>%
+    dplyr::filter(frame != 27)
   
   latency.list[[i]] <- latencies_tmp
 }
+```
 
-"create empty dataframe"
-latency.coords.2 <- setNames(data.frame(matrix(ncol = 8, nrow = 0)), c("frame", "x", "z", "timestamp", "radius", "startingpos", "X", "steeringbias"))
+## Accumulator predictions
 
+```{r}
+"for each dataframe, select a time and lateral position from the road-line once the accumulated steering bias has surpassed a threshold"
 
-"NOTE: THIS FOR LOOP DOESN'T WORK (YET) for each dataframe in the list, filter the observation at 0.15 s"
+df_accum <- data.frame()
+
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  coord_tmp <- latencies_tmp %>%
-    dplyr::filter(timestamp == 0.15)
+  for (a in c(.9)){
+      
+    latencies_tmp <- latencies_tmp %>%
+      dplyr::mutate(visangle_accum = cumsum(visangle)) %>%
+      dplyr::filter(visangle_accum > a) %>%
+      dplyr::mutate(threshold = a)
+      
+    
+    latencies.coords.tmp <- latencies_tmp[10,]
+    
+    df_accum <-  rbind(df_accum, latencies.coords.tmp)
+    
+  }
   
-  latency.coords.2 <- latency.coords.2 %>%
-    dplyr::bind_rows(coord_tmp[i])
+  
 }
+
+ggplot(df_accum, mapping = aes(x = radius, y = timestamp, col = as.factor(startingpos))) +
+  geom_point() 
+
+ggplot(df_accum, mapping = aes(x = radius, y = steeringbias, col = as.factor(startingpos))) +
+  geom_point()
 ```
 
-## plotting trajectory and lateral position after 150 ms
+## Threshold predictions
 
 ```{r}
-ggplot() +
-  geom_path(midline, mapping = aes(x = x, y = z)) +
-  geom_point(latency.coords, mapping = aes(x = x, y = z, col = as.factor(startingpos))) +
-  facet_wrap(~ radius) +
-  xlim(0, -.2) +
-  ylim(0,20)
+"for each dataframe, select a time and lateral position from the road-line once the accumulated steering bias has surpassed a threshold"
 
+df_thresh <- data.frame()
 
-ggplot() +
-  geom_point(latency.coords, mapping = aes(radius, y = steeringbias, col = as.factor(startingpos)), alpha = 0.5) +
-   scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  ylim(0, 0.08)
+for (i in 1:9){
+  latencies_tmp <- as.data.frame(latency.list[i])
+  
+  for (a in c(0.04)){
+      
+    latencies_tmp <- latencies_tmp %>%
+      dplyr::filter(steeringbias > a) %>%
+      dplyr::mutate(threshold = a)
+      
+    
+    latencies.coords.tmp <- latencies_tmp[10,]
+    
+    df_thresh <-  rbind(df_thresh, latencies.coords.tmp)
+    
+  }
+  
+  
+}
 
+ggplot(df_thresh, mapping = aes(x = radius, y = timestamp, col = as.factor(startingpos))) +
+  geom_point() 
 
-ggplot() +
-  geom_point(latency.coords, mapping = aes(radius, y = steeringbias + 0.03, col = as.factor(startingpos)), alpha = 0.5) +
-  geom_hline(aes(yintercept = 0.03)) +
-  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  ylim(0, 0.08)
-
-
-
-
-
+ggplot(df_thresh, mapping = aes(x = radius, y = steeringbias, col = as.factor(startingpos))) +
+  geom_line() +
+  ylim(0, .07)
 ```
+
+
+## Threshold predictions with 150 ms motor latency across differing thresholds
+
+```{r}
+"for each dataframe, select a time and lateral position from the road-line once the accumulated steering bias has surpassed a threshold"
+
+df_thresh <- data.frame()
+
+for (i in 1:9){
+  latencies_tmp <- as.data.frame(latency.list[i])
+  
+  for (a in c(seq(0.01, 0.04, by = 0.01))){
+      
+    latencies_tmp <- latencies_tmp %>%
+      dplyr::filter(steeringbias > a) %>%
+      dplyr::mutate(threshold = a)
+      
+    
+    latencies.coords.tmp <- latencies_tmp[10,]
+    
+    df_thresh <-  rbind(df_thresh, latencies.coords.tmp)
+    
+  }
+  
+  
+}
+
+threshold.labs <- c("0.01" = "Threshold: 0.01 m", "0.02" = "Threshold: 0.02 m", "0.03" = "Threshold: 0.03 m", "0.04" = "Threshold: 0.04 m")
+
+ggplot(df_thresh, mapping = aes(x = radius, y = steeringbias, linetype = as.factor(startingpos))) +
+  geom_line() +
+  facet_wrap(~ threshold, labeller = labeller(threshold = threshold.labs)) +
+  ylim(0, .08) +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  scale_linetype_manual(name = "Starting position (m)", values = c("dotted", "dashed", "solid")) +
+  xlab("Radius (m)") +
+  ylab("Lateral position error (m)") +
+  theme_plot +
+  theme(legend.position = c(.55, .12), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), strip.text = element_text(size = 12, face = "bold"), legend.key = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), axis.text.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
+
+  ggsave(here::here("TvA_curves_analysis_data/Plots/FigX.tiff"), plot = last_plot(), width = 15, height = 10, units = 'cm', dpi = 600, type = 'cairo')
+```
+
 
 ## Data saving
 
