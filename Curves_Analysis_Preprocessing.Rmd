@@ -193,7 +193,10 @@ I use the participants ID from the steering onset dataframe to filter a timecour
 
 ```{r}
 "filtering valid timecourses"
-onset_responses <- steering_onset$ppid_trialn 
+valid.responses <- steering_onset %>%
+  dplyr::filter(rt >= .15)
+
+onset_responses <- valid.responses$ppid_trialn 
 onset_responses <- as.vector(onset_responses) 
 
 onset.timecourse <- dplyr::filter(dat.visible.line, ppid_trialn %in% onset_responses) 

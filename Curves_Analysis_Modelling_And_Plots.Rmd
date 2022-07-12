@@ -217,118 +217,38 @@ g <- arrangeGrob(no.cam.rotation, cam.rotation, nrow = 1)
   ggsave(here::here("TvA_curves_analysis_data/Plots/Fig2.tiff"), g,  width = 14, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 3: Reaction time predictions
+
+## Figure 3 - visual angle and paradigm example
 
 ```{r}
-acc.rt <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/accumulator.steering.preds.radii.RT.csv")) 
-thresh.rt <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/threshold.steering.preds.radii.RT.csv")) 
-
-acc.rt <- acc.rt %>%
-  dplyr::rename_all(~c("rt", "startingpos", "radii")) %>%
-  dplyr::mutate(model = "accumulator")
-
-thresh.rt <- thresh.rt %>%
-  dplyr::rename_all(~c("rt", "startingpos", "radii")) %>%
-  dplyr::mutate(model = "threshold")
-
-rt.preds <- dplyr::bind_rows(acc.rt, thresh.rt)
-
-"Accumulator reaction time predictions"
-acc.plot.rt <- ggplot(rt.preds %>%
-         dplyr::filter(radii == 1000 | radii == 1500 | radii == 2000, model == "accumulator"), mapping = aes(x = radii, y = rt * 1.8, linetype = as.factor(startingpos))) +
-  geom_line() +
-  facet_wrap(~ model) + 
-  scale_y_continuous(breaks = c(0, 1, 2, 3), limits = c(0, 3), labels = scales::number_format(accuracy = 0.1)) +
-  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  xlab("Radius (m)") +
-  ylab("Reaction time (s)") +
-  ggtitle("A: Accumulator") +
-  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid")) +
+ggplot() +
+  geom_path(data = midline %>%
+              dplyr::group_by(radius) %>%
+              dplyr::filter(x > -.33), mapping = aes(x = x * -1, y = z, group = .group), alpha = .7) +
+  geom_point(onset.timecourse %>%
+               dplyr::group_by(ppid_trialn) %>%
+               dplyr::slice(1) %>%
+               dplyr::ungroup() %>%
+               dplyr::group_by(startingpos) %>%
+               dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, fill = as.factor(startingpos)), shape = 21, size = 2) +
+  geom_point(mapping = aes(x = 0.0471, y = 10), shape = 8) +
+  geom_curve(aes(x = 0, y = 0, xend = 0.0471, yend = 10), arrow.fill = "black", size = 0.3, curvature = 0) +
+  geom_curve(aes(x = 0, y = 0, xend = 0, yend = 12), arrow.fill = "black", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  annotate("text", x = 0.37, y = 40, size = 3, label = "2000 m") +
+  annotate("text", x = 0.37, y = 32.5, size = 3, label = "1500 m") +
+  annotate("text", x = 0.37, y = 26.5, size = 3, label = "1000 m") +
+  ylim(0, 40) +
+  xlim(0, 0.40) +
+  ylab("z (m)") +
+  xlab("x (m)") +
+  scale_fill_manual(name = " Starting position (m)", values = c("black", "white", "darkgrey"), labels = c("0", "4", "8"), guide = guide_legend(reverse = TRUE)) +
   theme_plot +
-  theme(legend.position = c(0.55, 0.85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+  theme(legend.position = c(0.60, 0.20), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 19, face = "bold"), axis.title.x = element_text(size = 12), axis.text.x = element_text(size = 12), axis.title.y = element_text(size = 12), axis.text.y = element_text(size = 12), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
 
-"Threshold reaction time predictions"
-thresh.plot.rt <- ggplot(rt.preds %>%
-         dplyr::filter(radii == 1000 | radii == 1500 | radii == 2000, model == "threshold"), mapping = aes(x = radii, y = rt, linetype = as.factor(startingpos))) +
-  geom_line() +
-  facet_wrap(~ model) + 
-  scale_y_continuous(breaks = c(0, 1, 2, 3), limits = c(0, 3), labels = scales::number_format(accuracy = 0.1)) +
-  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  xlab("Radius (m)") +
-  ylab("Reaction time (s)") +
-  ggtitle("B: Threshold") +
-  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid")) +
-  theme_plot +
-  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
-
-g <- arrangeGrob(acc.plot.rt, thresh.plot.rt, nrow = 1)
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig3.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig3.tiff"), last_plot(),  width = 7, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 4: Lateral position error predictions and data
-
-```{r}
-acc.steering <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/accumulator.steering.preds.radii.steering.csv")) 
-thresh.steering <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/threshold.steering.preds.radii.steering.csv")) 
-
-acc.steering <- acc.steering %>%
-  dplyr::rename_all(~c("steering_rate", "startingpos", "radii")) %>%
-  dplyr::mutate(model = "accumulator")
-
-thresh.steering <- thresh.steering %>%
-  dplyr::rename_all(~c("steering_rate", "startingpos", "radii")) %>%
-  dplyr::mutate(model = "threshold")
-
-steering.preds <- dplyr::bind_rows(acc.steering, thresh.steering)
-
-steering.preds <- steering.preds %>%
-  dplyr::filter(radii == 1000 | radii == 1500 | radii == 2000) %>%
-  dplyr::mutate(steering_rate = case_when(model == "threshold" & radii == 2000 ~ steering_rate - 0.008,
-                                          model == "threshold" & radii == 1500 ~ steering_rate - 0.006,
-                                          model == "threshold" & radii == 1000 ~ steering_rate,
-                                          model == "accumulator" & radii == 2000 ~ steering_rate,
-                                          model == "accumulator" & radii == 1500 ~ steering_rate,
-                                          model == "accumulator" & radii == 1000 ~ steering_rate)) %>%
-  dplyr::mutate(steering_rate = case_when(model == "threshold" & startingpos == 8 ~ steering_rate + 0.004,
-                                          model == "threshold" & startingpos == 4 ~ steering_rate + 0.0037,
-                                          model == "threshold" & startingpos == 0 ~ steering_rate + 0.0036,
-                                          model == "accumulator" & startingpos == 8 ~ steering_rate,
-                                          model == "accumulator" & startingpos == 4 ~ steering_rate,
-                                          model == "accumulator" & startingpos == 0 ~ steering_rate))
-
-"Accumulator predictions"
-acc.plot.lpe <- ggplot(steering.preds %>%
-         dplyr::filter(model == "accumulator"), mapping = aes(x = radii, y = steering_rate, linetype = as.factor(startingpos))) +
-  geom_line() +
-  facet_wrap(~ model) +
-  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  ylim(0, 0.06) +
-  xlab("Radius (m)") +
-  ylab("Lateral position error (m)") +
-  ggtitle("A: Accumulator") +
-  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
-  theme_plot +
-  theme(legend.position = c(.55, .75), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
-
-"Threshold predictions"
-thresh.plot.lpe <- ggplot(steering.preds %>%
-         dplyr::filter(model == "threshold"), mapping = aes(x = radii, y = steering_rate, linetype = as.factor(startingpos))) +
-  geom_line() +
-  facet_wrap(~ model) +
-  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  ylim(0, 0.06) +
-  xlab("Radius (m)") +
-  ylab("Lateral position error (m)") +
-  ggtitle("B: Threshold") +
-  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
-  theme_plot +
-  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(size = 11), axis.title.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
-
-g <- arrangeGrob(acc.plot.lpe, thresh.plot.lpe, nrow = 1)
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig4.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
-```
-
-## Figure 5: Steering rate predictions and data
+## Figure 6: Steering rate predictions and data
 
 ```{r}
 acc.steering <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/accumulator.steering.preds.radii.steering.csv")) 
@@ -380,10 +300,10 @@ thresh.plot.sr <- ggplot(steering.preds.sr %>%
   theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
 
 g <- arrangeGrob(acc.plot.sr, thresh.plot.sr, nrow = 1)
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig5.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig6.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 7: Bird's eye view of experimental conditions
+## Figure 8: Bird's eye view of experimental conditions
 
 ```{r}
 ggplot() +
@@ -411,38 +331,101 @@ ggplot() +
   theme_plot +
   theme(legend.position = c(0.21, 0.20), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 19, face = "bold"), axis.title.x = element_text(size = 12), axis.text.x = element_text(size = 12), axis.title.y = element_text(size = 12), axis.text.y = element_text(size = 12), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
 
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig7.tiff"), plot = last_plot(), width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig8.tiff"), plot = last_plot(), width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 8: Average trajectories for each condition
+## Figure 9: Average trajectories for each condition
 
 ```{r}
 my_cols <- c("#440154FF", "#238A8DFF", "#73D055FF")
 radii.labs <- c("1000" = "Radius: 1000 m", "1500" = "Radius: 1500 m", "2000" = "Radius: 2000 m")
 
-ggplot() +
-  geom_path(data = midline, mapping = aes(x = x * -1, y = z), size = 1) +
+"1000 radius curve"
+radius.1000.plot <- ggplot() +
+  geom_path(data = midline %>%
+              dplyr::filter(radius == 1000), mapping = aes(x = x * -1, y = z), size = 1) +
   geom_path(data = onset.timecourse %>%
+              dplyr::filter(pNum != 10, radius == 1000) %>%
               dplyr::group_by(startingpos, radius, frame) %>%
               dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, linetype = as.factor(startingpos))) +
   geom_point(overall.dat %>%
-               dplyr::filter(pNum != 10) %>%
+               dplyr::filter(pNum != 10, radius == 1000) %>%
+               dplyr::group_by(startingpos, radius) %>%
+               dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, fill = as.factor(startingpos)), shape = 21) +
+  scale_fill_manual(name = "Starting \nposition (m)", values = c("black", "white", "darkgrey"), labels = c("0", "4", "8"), guide = FALSE) +
+  scale_linetype_manual(name = "Starting \nposition (m)", labels = c("0", "4", "8"), values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+   geom_curve(aes(x = -.05, y = 0, xend = -.005, yend = 0), arrow.fill = "black", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = -.05, y = 4, xend = -.005, yend = 4), arrow.fill = "white", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = -.05, y = 8, xend = -.005, yend = 8), arrow.fill = "darkgrey", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  ylab("z (m)") +
+  xlab("x (m)") +
+  ylim(0, 20) +
+  #xlim(-.05, .2) +
+  scale_x_continuous(breaks = c(0, .10), limits = c(-.05, .11), labels = scales::number_format(accuracy = 0.01)) +
+  facet_wrap(~ radius, labeller = labeller(radius = radii.labs)) +
+  theme_plot +
+  theme(legend.position = c(0.80, .20), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 19, face = "bold"), strip.text = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 12), axis.text.x = element_text(size = 12), axis.title.y = element_text(size = 12), axis.text.y = element_text(size = 12), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
+
+"1500 radius curve"
+radius.1500.plot <- ggplot() +
+  geom_path(data = midline %>%
+              dplyr::filter(radius == 1500), mapping = aes(x = x * -1, y = z), size = 1) +
+  geom_path(data = onset.timecourse %>%
+              dplyr::filter(pNum != 10, radius == 1500) %>%
+              dplyr::group_by(startingpos, radius, frame) %>%
+              dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, linetype = as.factor(startingpos))) +
+  geom_point(overall.dat %>%
+               dplyr::filter(pNum != 10, radius == 1500) %>%
                dplyr::group_by(startingpos, radius) %>%
                dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, fill = as.factor(startingpos)), shape = 21) +
   scale_fill_manual(name = "Starting position (m)", values = c("black", "white", "darkgrey"), labels = c("0", "4", "8"), guide = FALSE) +
   scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"), values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  geom_curve(aes(x = -.05, y = 0, xend = -.005, yend = 0), arrow.fill = "black", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = -.05, y = 4, xend = -.005, yend = 4), arrow.fill = "white", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = -.05, y = 8, xend = -.005, yend = 8), arrow.fill = "darkgrey", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
   ylab("z (m)") +
   xlab("x (m)") +
   ylim(0, 20) +
-  scale_x_continuous(breaks = c(0, .10, .20), limits = c(-.05, .20), labels = scales::number_format(accuracy = 0.01)) +
+  #xlim(-.05, .2) +
+  scale_x_continuous(breaks = c(0, .10), limits = c(-.05, .11), labels = scales::number_format(accuracy = 0.01)) +
   facet_wrap(~ radius, labeller = labeller(radius = radii.labs)) +
   theme_plot +
-  theme(legend.position = c(0.25, 0.30), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 19, face = "bold"), strip.text = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 12), axis.text.x = element_text(size = 12), axis.title.y = element_text(size = 12), axis.text.y = element_text(size = 12), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10)) 
+  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 19, face = "bold"), strip.text = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 12), axis.text.x = element_text(size = 12), axis.title.y = element_text(size = 12), axis.text.y = element_text(size = 12), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
 
-  ggsave(here::here("TvA_curves_analysis_data/Plots/Fig8.tiff"), plot = last_plot(), width = 15, height = 10, units = 'cm', dpi = 600, type = 'cairo')
+
+"2000 radius curve"
+radius.2000.plot <- ggplot() +
+  geom_path(data = midline %>%
+              dplyr::filter(radius == 2000), mapping = aes(x = x * -1, y = z), size = 1) +
+  geom_path(data = onset.timecourse %>%
+              dplyr::filter(pNum != 10, radius == 2000) %>%
+              dplyr::group_by(startingpos, radius, frame) %>%
+              dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, linetype = as.factor(startingpos))) +
+  geom_point(overall.dat %>%
+               dplyr::filter(pNum != 10, radius == 2000) %>%
+               dplyr::group_by(startingpos, radius) %>%
+               dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, fill = as.factor(startingpos)), shape = 21) +
+  scale_fill_manual(name = "Starting position (m)", values = c("black", "white", "darkgrey"), labels = c("0", "4", "8"), guide = FALSE) +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"), values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  geom_curve(aes(x = -.05, y = 0, xend = -.005, yend = 0), arrow.fill = "black", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = -.05, y = 4, xend = -.005, yend = 4), arrow.fill = "white", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  geom_curve(aes(x = -.05, y = 8, xend = -.005, yend = 8), arrow.fill = "darkgrey", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
+  ylab("z (m)") +
+  xlab("x (m)") +
+  ylim(0, 20) +
+  #xlim(-.05, .2) +
+  scale_x_continuous(breaks = c(0, .10), limits = c(-.05, .11), labels = scales::number_format(accuracy = 0.01)) +
+  facet_wrap(~ radius, labeller = labeller(radius = radii.labs)) +
+  theme_plot +
+  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 19, face = "bold"), strip.text = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 12), axis.text.x = element_text(size = 12), axis.title.y = element_text(size = 12), axis.text.y = element_text(size = 12), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
+
+
+
+g <- arrangeGrob(radius.1000.plot, radius.1500.plot, radius.2000.plot, nrow = 1)
+  ggsave(here::here("TvA_curves_analysis_data/Plots/Fig9.tiff"), plot = g, width = 15, height = 10, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 9: reaction time results 
+## Figure 10: reaction time results 
 
 ```{r}
 "Reaction time data"
@@ -463,11 +446,11 @@ data.plot.rt <- ggplot() +
   theme_plot +
   theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), axis.text.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
 
-g <- arrangeGrob(acc.plot.rt, thresh.plot.rt, data.plot.rt, nrow = 1)
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig9.tiff"), g,  width = 15, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+g <- arrangeGrob(accum.plot.rt, thresh.plot.rt, data.plot.rt, nrow = 1)
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig10.tiff"), g,  width = 15, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 10: lateral position error results
+## Figure 11: lateral position error results
 
 ```{r}
 "steering bias means and confidence intervals"
@@ -475,7 +458,7 @@ errorbar.sb <- summarySE(overall.dat %>%
                            dplyr::mutate(startingpos = as.numeric(startingpos), radius = as.numeric(radius)) %>%
                            dplyr::filter(rt > .15), measurevar = "steeringbias", groupvars = c("radius", "startingpos")) 
 
-""
+
 data.plot.sb <- ggplot() +
   geom_point(data = errorbar.sb, mapping = aes(x = radius, y = steeringbias)) +
   geom_line(data = errorbar.sb, mapping = aes(x = radius, linetype = as.factor(startingpos), group = as.factor(startingpos), y = steeringbias)) +
@@ -489,14 +472,11 @@ data.plot.sb <- ggplot() +
   theme_plot +
   theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), axis.text.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
 
-g <- arrangeGrob(acc.plot.lpe, thresh.plot.lpe, data.plot.sb, nrow = 1)
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig10.tiff"), g,  width = 15, height = 7, units = 'cm', dpi = 600, type = 'cairo')
-
-"latency"
-latency.coords <- read.csv(here::here("TvA_curves_analysis_data/Participant_Data/latency_coords.csv")) 
+g <- arrangeGrob(accum.plot.lpe, thresh.plot.lpe, data.plot.sb, nrow = 1)
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig11.tiff"), g,  width = 15, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-## Figure 11: steering rate
+## Figure 12: steering rate
 
 ```{r}
 "steering rate"
@@ -517,9 +497,8 @@ data.plot.sr <- ggplot() +
   theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), axis.text.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
 
 g <- arrangeGrob(acc.plot.sr, thresh.plot.sr, data.plot.sr, nrow = 1)
-ggsave(here::here("TvA_curves_analysis_data/Plots/Fig11.tiff"), g,  width = 15, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig12.tiff"), g,  width = 15, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
-
 
 ## Modelling for reaction time - Table 2
 

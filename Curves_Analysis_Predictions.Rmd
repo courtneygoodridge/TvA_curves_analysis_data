@@ -1,0 +1,432 @@
+---
+title: "Computing latencies for each radii/starting position condition"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load packages
+
+```{r}
+if(!require(here)) install.packages("here")
+library(here)
+
+if(!require(tidyr)) install.packages("tidyr")
+library(tidyr)
+
+if(!require(dplyr)) install.packages("dplyr")
+library(dplyr)
+
+if(!require(plyr)) install.packages("plyr")
+library(plyr)
+
+if(!require(ggplot2)) install.packages("ggplot2")
+library(ggplot2)
+
+if(!require(signal)) install.packages("signal")
+library(signal)
+
+if(!require(Rmisc)) install.packages("Rmisc")
+library(Rmisc)
+
+if(!require(purrr)) install.packages("purrr")
+library(purrr)
+
+if(!require(stringr)) install.packages("stringr")
+library(stringr)
+
+if(!require(lme4)) install.packages("lme4")
+library(lme4)
+
+if(!require(lmerTest)) install.packages("lmerTest")
+library(lmerTest)
+
+if(!require(data.table)) install.packages("data.table")
+library(data.table)
+
+if(!require(readr)) install.packages("readr")
+library(readr)
+
+if(!require(rmarkdown)) install.packages("rmarkdown")
+library(rmarkdown)
+```
+
+## Load data
+
+Simulation of driver travelling across the z axis (straight ahead) for 0, 4 and 8 m starting position. 
+
+```{r}
+"load coordinates"
+latency.1000 <- read.csv(here::here("TvA_curves_analysis_data/Midline_Data/Curves.Startingpos_Radius_Straight_Line_Sim.csv")) %>%
+  dplyr::mutate(trialid = paste(ppid, trialn, sep = "_")) %>%
+  dplyr::mutate(LineVis = case_when(BendVisible == "True" ~ TRUE,
+                                    BendVisible == "False" ~ FALSE)) %>%
+  dplyr::filter(LineVis == TRUE) %>%
+  dplyr::filter(trialn != -1) %>%
+  dplyr::group_by(trialid) %>%
+  dplyr::mutate(frame = row_number()) %>%
+  dplyr::ungroup()
+
+"transforming coordinates from global to local"
+latency.1000.0 <- latency.1000 %>%
+  dplyr::group_by(trialid) %>%
+  dplyr::mutate(World_x_new = World_x - World_x[1]) %>%
+  dplyr::mutate(World_z_new = World_z - World_z[1]) %>%
+  dplyr::mutate(WorldYaw_rads = WorldYaw / 180 * pi) %>%
+  dplyr::mutate(rotatedX = World_x_new * cos(WorldYaw_rads[1]) - World_z_new * sin(WorldYaw_rads[1])) %>%
+  dplyr::mutate(rotatedZ = World_x_new * sin(WorldYaw_rads[1]) +  World_z_new * cos(WorldYaw_rads[1])) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(frame) %>%
+  dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)) %>%
+  dplyr::mutate(timestamp = frame / 60) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(radius = 1000, startingpos = 0)
+
+
+latency.1000.4 <- latency.1000.0 %>%
+  dplyr::mutate(z = z + 4, startingpos = 4)
+
+latency.1000.8 <- latency.1000.0 %>%
+  dplyr::mutate(z = z + 8, startingpos = 8)
+
+latency.1000 <- dplyr::bind_rows(latency.1000.0, latency.1000.4, latency.1000.8)
+```
+
+## creating coordinates for each curve radius
+
+```{r}
+"1000"
+latency.1000.0 <- latency.1000.0 %>%
+  dplyr::mutate(X = row_number())
+
+latency.1000.4 <- latency.1000.4 %>%
+  dplyr::mutate(X = row_number())
+
+latency.1000.8 <- latency.1000.8 %>%
+  dplyr::mutate(X = row_number())
+
+"1500"
+latency.1500.0 <- latency.1000.0 %>%
+  dplyr::mutate(radius = 1500) %>%
+  dplyr::mutate(X = row_number())
+
+latency.1500.4 <- latency.1000.4 %>%
+  dplyr::mutate(radius = 1500) %>%
+  dplyr::mutate(X = row_number())
+
+latency.1500.8 <- latency.1000.8 %>%
+  dplyr::mutate(radius = 1500) %>%
+  dplyr::mutate(X = row_number())
+  
+"2000"
+latency.2000.0 <- latency.1000.0 %>%
+  dplyr::mutate(radius = 2000) %>%
+  dplyr::mutate(X = row_number())
+
+latency.2000.4 <- latency.1000.4 %>%
+  dplyr::mutate(radius = 2000) %>%
+  dplyr::mutate(X = row_number())
+
+latency.2000.8 <- latency.1000.8 %>%
+  dplyr::mutate(radius = 2000) %>%
+  dplyr::mutate(X = row_number())
+
+"putting coordinate information in a list"
+latencies <- list(latency.1000.0, latency.1000.4, latency.1000.8, latency.1500.0, latency.1500.4, latency.1500.8, latency.2000.0, latency.2000.4, latency.2000.8)
+```
+
+## Function for calculating visual angle to a point on the curved road-line
+
+```{r}
+"calculation of visual angle looking through curve"
+calc_visangle <- function(df, midline, ind){
+  # selects the point in the midline closest to the current position in the world 
+  
+  midlinedist = sqrt(
+    ((df$x[ind] - midline[,2])**2)
+    +((df$z[ind] - midline[,3] + 10)**2)
+  ) 
+mid = as.numeric(unlist(midlinedist))
+
+idx = which.min((abs(mid))) # find smallest difference, closest index on the midline
+
+closestpt = midline[idx, 2:3] # closest point b
+
+x_dist = abs(df$x[ind] - closestpt[1])
+z_dist = abs(df$z[ind] - closestpt[2])
+vis_angle_corrected = tan(x_dist / z_dist) #distance from closest point
+  
+  return(vis_angle_corrected)
+}
+```
+
+## Function for calculating lateral position error relative to a curved road-line
+
+```{r}
+"calculation of steering bias function"
+calc <- function(df, midline, ind){
+  # selects the point in the midline closest to the current position in the world 
+  
+  midlinedist = sqrt(
+    ((df$x[ind] - midline[,2])**2)
+    +((df$z[ind] - midline[,3])**2)
+  ) 
+  mid = as.numeric(unlist(midlinedist))
+  
+  idx = which.min((abs(mid))) #find smallest difference. This is the closest index on the midline.
+  
+  closestpt = midline[idx, 2:3] #xy of closest point
+  dist = midlinedist[idx, ] #distance from closest point				
+  origin = midline[1, 2:3]
+  
+  #Sign bias from assessing if the closest point on midline is closer to the track origin than the driver position. 
+  #Since the track is an oval, closer = understeering, farther = oversteering.
+  
+  middist_from_origin = sqrt(
+    ((closestpt[1] - origin[1])**2)
+    +((closestpt[2]-origin[2])**2)
+  )  #distance of midline to origin
+  
+  pos_from_trackorigin = sqrt(
+    ((df$z[ind] - origin[1])**2)
+    +((df$z[ind] - origin[2])**2)
+  ) #distance of driver position to origin
+  
+  #if driver distance is greater than closest point distance, steering position should be understeering
+  distdiff = middist_from_origin - pos_from_trackorigin 
+  steeringbias = dist * sign(distdiff)
+  steeringbias = as.numeric(as.character(unlist(steeringbias)))
+  
+  return(steeringbias)
+}
+```
+
+## Iterate functions for lateral position error and visual angle
+
+```{r}
+"iteration of steering bias function"
+iterate_bias <- function(df = steerdata){
+  "select the appropriate midline, calculate steering bias per row"
+  steeringbias <- vector(mode = "numeric", length = length(df$X))
+  vis_angle_corrected <- vector(mode = "numeric", length = length(df$X))
+  for(i in 1:length(df$X)){
+    
+    # select midline array
+    if(df$radius[i] == 1000){
+      midline = midline_1000
+      }
+    else if(df$radius[i] == 1500){
+      midline = midline_1500
+    }
+    else{
+      midline = midline_2000
+    }
+      
+    steeringbias[[i]] <- calc(df, midline, ind = i)
+    vis_angle_corrected[[i]] <- calc(df, midline, ind = i)
+    }
+  return(steeringbias)
+}
+
+"iteration of visual angle function"
+iterate_angle <- function(df = steerdata){
+  "select the appropriate midline, calculate steering bias per row"
+  vis_angle_corrected <- vector(mode = "numeric", length = length(df$X))
+  for(i in 1:length(df$X)){
+    
+    # select midline array
+    if(df$radius[i] == 1000){
+      midline = midline_1000
+      }
+    else if(df$radius[i] == 1500){
+      midline = midline_1500
+    }
+    else{
+      midline = midline_2000
+    }
+    
+    vis_angle_corrected[[i]] <- calc(df, midline, ind = i)
+    }
+  return(vis_angle_corrected)
+}
+
+```
+
+## Caclualate lateral position and visual angle for straight line sim relative to various radii curves
+
+```{r}
+"create empty list for dataframes"
+latency.list <- vector(mode = "list", length = 9)
+
+"for each data frame in the list, compute the steering bias and visual angle"
+for (i in 1:9){
+  latencies_tmp <- as.data.frame(latencies[i])
+  
+  latencies_tmp$steeringbias <- iterate_bias(df = latencies_tmp)
+  latencies_tmp$vis_angle_corrected <- iterate_angle(df = latencies_tmp)
+  
+  latencies_tmp <- latencies_tmp %>%
+    dplyr::mutate(steeringbias = abs(steeringbias)) %>%
+    dplyr::mutate(visangle_rads = abs(vis_angle_corrected)) %>%
+    dplyr::mutate(visangle = visangle_rads * 180/pi) %>%
+    dplyr::filter(frame != 26) %>%
+    dplyr::filter(frame != 27)
+  
+  latency.list[[i]] <- latencies_tmp
+}
+```
+
+## Reaction time predictions for Accumulator and Threshold frameworks
+
+```{r}
+"for each dataframe, select a time and lateral position from the road-line once the accumulated steering bias has surpassed a threshold"
+
+df_accum <- data.frame()
+
+for (i in 1:9){
+  latencies_tmp <- as.data.frame(latency.list[i])
+  
+  for (a in c(3)){
+      
+    latencies_tmp <- latencies_tmp %>%
+      dplyr::mutate(steeringbias_accum = cumsum(visangle)) %>%
+      dplyr::filter(steeringbias_accum > a) %>%
+      dplyr::mutate(threshold = a)
+      
+    
+    latencies.coords.tmp <- latencies_tmp[10,]
+    
+    df_accum <-  rbind(df_accum, latencies.coords.tmp)
+    
+  }
+  
+  
+}
+
+"for each dataframe, select a time and lateral position from the road-line once the accumulated steering bias has surpassed a threshold"
+df_thresh <- data.frame()
+
+for (i in 1:9){
+  latencies_tmp <- as.data.frame(latency.list[i])
+  
+  for (a in c(1.5)){
+      
+    latencies_tmp <- latencies_tmp %>%
+      dplyr::filter(visangle > a) %>%
+      dplyr::mutate(threshold = a)
+      
+    
+    latencies.coords.tmp <- latencies_tmp[10,]
+    
+    df_thresh <-  rbind(df_thresh, latencies.coords.tmp)
+    
+  }
+  
+  
+}
+
+"REACTION TIME PREDICTIONS"
+accum.plot.rt <- ggplot(df_accum, mapping = aes(x = radius, y = timestamp, linetype = as.factor(startingpos))) +
+  geom_line() +
+  ylim(0.1, 1) +
+  #scale_y_continuous(breaks = c(0, 0.5, 1, 1.5, 2), limits = c(0, 2), labels = scales::number_format(accuracy = 0.1)) +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  xlab("Radius (m)") +
+  ylab("Reaction time (s)") +
+  ggtitle("A: Accumulator") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid")) +
+  theme_plot +
+  theme(legend.position = c(0.55, 0.85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+thresh.plot.rt <- ggplot(df_thresh, mapping = aes(x = radius, y = timestamp, linetype = as.factor(startingpos))) +
+  geom_line() +
+  ylim(0, 2.5) +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  xlab("Radius (m)") +
+  ylab("Reaction time (s)") +
+  ggtitle("B: Threshold") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid")) +
+  theme_plot +
+  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+g <- arrangeGrob(accum.plot.rt, thresh.plot.rt, nrow = 1)
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig4.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+```
+
+## Threshold predictions
+
+```{r}
+"LATERAL POSITION ERROR PREDICTIONS"
+accum.plot.lpe <- ggplot(df_accum, mapping = aes(x = radius, y = steeringbias, linetype = as.factor(startingpos))) +
+  geom_line() +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  ylim(0, 0.06) +
+  xlab("Radius (m)") +
+  ylab("Lateral position error (m)") +
+  ggtitle("A: Accumulator") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  theme_plot +
+  theme(legend.position = c(.55, .85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+
+thresh.plot.lpe <- ggplot(df_thresh, mapping = aes(x = radius, y = steeringbias, linetype = as.factor(startingpos))) +
+  geom_line() +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  ylim(-.05, .1) +
+  xlab("Radius (m)") +
+  ylab("Lateral position error (m)") +
+  ggtitle("B: Threshold") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  theme_plot +
+  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(size = 11), axis.title.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+g <- arrangeGrob(accum.plot.lpe, thresh.plot.lpe, nrow = 1)
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig5.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+```
+
+## Figure 13: Threshold predictions across differing motor latencies
+
+```{r}
+"for each dataframe, select a time and lateral position from the road-line once the accumulated steering bias has surpassed a threshold"
+
+df_thresh <- data.frame()
+
+for (i in 1:9){
+  latencies_tmp <- as.data.frame(latency.list[i])
+  
+  for (a in c(seq(10, 40, by = 10))){
+      
+    latencies_tmp <- latencies_tmp %>%
+      dplyr::filter(visangle > 1.5)
+      
+    
+    latencies.coords.tmp <- latencies_tmp[a,]
+    
+    latencies.coords.tmp <- latencies.coords.tmp %>%
+      dplyr::mutate(latency = a)
+    
+    df_thresh <-  rbind(df_thresh, latencies.coords.tmp)
+    
+  }
+  
+  
+}
+
+latency.labs <- c("10" = "Latency = 150 ms", "20" = "Latency = 300 ms", "30" = "Latency = 450 ms", "40" = "Latency = 600 ms")
+
+ggplot(df_thresh, mapping = aes(x = radius, y = steeringbias, linetype = as.factor(startingpos))) +
+  geom_line() +
+  facet_wrap(~ latency, labeller = labeller(latency = latency.labs)) +
+  ylim(0, .1) +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  scale_linetype_manual(name = "Starting position (m)", values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  xlab("Radius (m)") +
+  ylab("Lateral position error (m)") +
+  theme_plot +
+  theme(legend.position = c(.51, .60), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), strip.text = element_text(size = 12, face = "bold"), legend.key = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), axis.text.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10))
+
+  ggsave(here::here("TvA_curves_analysis_data/Plots/Fig13.tiff"), plot = last_plot(), width = 10, height = 10, units = 'cm', dpi = 600, type = 'cairo')
+```
+
