@@ -256,7 +256,7 @@ iterate_angle <- function(df = steerdata){
       midline = midline_2000
     }
     
-    vis_angle_corrected[[i]] <- calc(df, midline, ind = i)
+    vis_angle_corrected[[i]] <- calc_visangle(df, midline, ind = i)
     }
   return(vis_angle_corrected)
 }
@@ -283,14 +283,12 @@ for (i in 1:9){
   latencies_tmp <- as.data.frame(latencies[i])
   
   latencies_tmp$steeringbias <- iterate_bias(df = latencies_tmp)
-  latencies_tmp$vis_angle_corrected <- iterate_angle(df = latencies_tmp)
+  latencies_tmp$vis_angle_corrected <- matrix(unlist(iterate_angle(df = latencies_tmp)), nrow = 301, byrow = TRUE)
   
   latencies_tmp <- latencies_tmp %>%
     dplyr::mutate(steeringbias = abs(steeringbias)) %>%
     dplyr::mutate(visangle_rads = abs(vis_angle_corrected)) %>%
-    dplyr::mutate(visangle = visangle_rads * 180/pi) %>%
-    dplyr::filter(frame != 26) %>%
-    dplyr::filter(frame != 27)
+    dplyr::mutate(visangle = visangle_rads * 180/pi)
   
   latency.list[[i]] <- latencies_tmp
 }
@@ -306,7 +304,7 @@ df_accum <- data.frame()
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  for (a in c(3)){
+  for (a in c(6)){
       
     latencies_tmp <- latencies_tmp %>%
       dplyr::mutate(steeringbias_accum = cumsum(visangle)) %>%
@@ -329,7 +327,7 @@ df_thresh <- data.frame()
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  for (a in c(1.5)){
+  for (a in c(1)){
       
     latencies_tmp <- latencies_tmp %>%
       dplyr::filter(visangle > a) %>%
@@ -360,7 +358,7 @@ accum.plot.rt <- ggplot(df_accum, mapping = aes(x = radius, y = timestamp, linet
 
 thresh.plot.rt <- ggplot(df_thresh, mapping = aes(x = radius, y = timestamp, linetype = as.factor(startingpos))) +
   geom_line() +
-  ylim(0, 2.5) +
+  #ylim(0, 2.5) +
   scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
   xlab("Radius (m)") +
   ylab("Reaction time (s)") +
