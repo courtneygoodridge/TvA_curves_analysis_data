@@ -192,7 +192,6 @@ g <- arrangeGrob(no.cam.rotation, cam.rotation, nrow = 1)
   ggsave(here::here("TvA_curves_analysis_data/Plots/Fig2.tiff"), g,  width = 14, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
-
 ## Figure 3 - visual angle and paradigm example
 
 ```{r}
@@ -201,13 +200,14 @@ ggplot() +
               dplyr::group_by(radius) %>%
               dplyr::filter(x > -.33), mapping = aes(x = x * -1, y = z, group = .group), alpha = .7) +
   geom_point(onset.timecourse %>%
+               dplyr::filter(pNum != 10) %>%
                dplyr::group_by(ppid_trialn) %>%
                dplyr::slice(1) %>%
                dplyr::ungroup() %>%
                dplyr::group_by(startingpos) %>%
                dplyr::summarise(x = mean(rotatedX), z = mean(rotatedZ)), mapping = aes(x = x, y = z, fill = as.factor(startingpos)), shape = 21, size = 2) +
   geom_point(mapping = aes(x = 0.0471, y = 10), shape = 8) +
-  geom_curve(aes(x = 0, y = 0, xend = 0.0471, yend = 10), arrow.fill = "black", size = 0.3, curvature = 0) +
+  geom_curve(aes(x = 0, y = 0, xend = 0.0471, yend = 10), linetype = "dashed", arrow.fill = "black", size = 0.3, curvature = 0) +
   geom_curve(aes(x = 0, y = 0, xend = 0, yend = 12), arrow.fill = "black", size = 0.3, curvature = 0, arrow = arrow(type = "closed", length = unit(0.3,"cm"))) +
   annotate("text", x = 0.37, y = 40, size = 3, label = "2000 m") +
   annotate("text", x = 0.37, y = 32.5, size = 3, label = "1500 m") +
@@ -223,18 +223,81 @@ ggplot() +
 ggsave(here::here("TvA_curves_analysis_data/Plots/Fig3.tiff"), last_plot(),  width = 7, height = 7, units = 'cm', dpi = 600, type = 'cairo')
 ```
 
+## Figure 4: Reaction time predictions and data
+
+```{r}
+"Load data"
+df_accum <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/df_accum.csv"))
+df_thresh <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/df_thresh.csv"))
+
+"REACTION TIME PREDICTIONS"
+accum.plot.rt <- ggplot(df_accum, mapping = aes(x = radius.x, y = timestamp, linetype = as.factor(startingpos))) +
+  geom_line() +
+  ylim(0.2, .65) +
+  #scale_y_continuous(breaks = c(0, 0.5, 1, 1.5, 2), limits = c(0, 2), labels = scales::number_format(accuracy = 0.1)) +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  xlab("Radius (m)") +
+  ylab("Reaction time (s)") +
+  ggtitle("A: Accumulator") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid")) +
+  theme_plot +
+  theme(legend.position = c(0.48, 0.84), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+thresh.plot.rt <- ggplot(df_thresh, mapping = aes(x = radius.x, y = timestamp, linetype = as.factor(startingpos))) +
+  geom_line() +
+  #ylim(2, 6) +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  xlab("Radius (m)") +
+  ylab("Reaction time (s)") +
+  ggtitle("B: Threshold") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid")) +
+  theme_plot +
+  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+g <- arrangeGrob(accum.plot.rt, thresh.plot.rt, nrow = 1)
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig4.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+```
+
+## Figure 5: Lateral position error predictions
+
+```{r}
+"LATERAL POSITION ERROR PREDICTIONS"
+accum.plot.lpe <- ggplot(df_accum, mapping = aes(x = radius.x, y = steeringbias, linetype = as.factor(startingpos))) +
+  geom_line() +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  ylim(0, 0.07) +
+  xlab("Radius (m)") +
+  ylab("Lateral position error (m)") +
+  ggtitle("A: Accumulator") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  theme_plot +
+  theme(legend.position = c(.55, .85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.title.x = element_text(size = 11), axis.text.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+
+thresh.plot.lpe <- ggplot(df_thresh, mapping = aes(x = radius.x, y = steeringbias, linetype = as.factor(startingpos))) +
+  geom_line() +
+  scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
+  ylim(0, .15) +
+  xlab("Radius (m)") +
+  ylab("Lateral position error (m)") +
+  ggtitle("B: Threshold") +
+  scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
+  theme_plot +
+  theme(legend.position = "none", legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(size = 11), axis.title.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+
+g <- arrangeGrob(accum.plot.lpe, thresh.plot.lpe, nrow = 1)
+ggsave(here::here("TvA_curves_analysis_data/Plots/Fig5.tiff"), g,  width = 10, height = 7, units = 'cm', dpi = 600, type = 'cairo')
+```
+
+
 ## Figure 6: Steering rate predictions and data
 
 ```{r}
-acc.steering <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/accumulator.steering.preds.radii.steering.csv")) 
+"load/create data"
+df_accum <- df_accum %>%
+  dplyr::mutate(steering_rate = steeringbias * 15)
+  
 thresh.steering <- read.csv(here::here("TvA_curves_analysis_data/Prediction_Data/threshold.steering.preds.radii.steering.csv")) 
-
-
-acc.steering <- acc.steering %>%
-  dplyr::rename_all(~c("steering_rate", "startingpos", "radii")) %>%
-  dplyr::mutate(model = "accumulator") %>%
-  dplyr::filter(radii == 1000 | radii == 1500 | radii == 2000) %>%
-  dplyr::mutate(steering_rate = steering_rate * 15)
 
 "need to adjust steering to put make lines more visible for plotting"
 thresh.steering <- thresh.steering %>%
@@ -246,20 +309,17 @@ thresh.steering <- thresh.steering %>%
                                               startingpos == 4 ~ 0.275,
                                               startingpos == 8 ~ 0.280))
 
-steering.preds.sr <- dplyr::bind_rows(acc.steering, thresh.steering) 
-
 "Accumulator framework predictions plot"
-acc.plot.sr <- ggplot(steering.preds.sr %>%
-                        dplyr::filter(model == "accumulator"), mapping = aes(x = radii, y = steering_rate, linetype = as.factor(startingpos))) +
+acc.plot.sr <- ggplot(df_accum, mapping = aes(x = radius.x, y = steering_rate, linetype = as.factor(startingpos))) +
   geom_line() +
   scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
-  ylim(0, 0.7) +
+  ylim(0, 0.85) +
   xlab("Radius (m)") +
   ylab("Steering rate (°/s)") +
   ggtitle("A: Accumulator") +
   scale_linetype_manual(name = "Starting position (m)", labels = c("0", "4", "8"),  values = c("dotted", "dashed", "solid"), guide = guide_legend(reverse = TRUE)) +
   theme_plot +
-  theme(legend.position = c(.55, .85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(size = 11), axis.title.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
+  theme(legend.position = c(.60, .85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(size = 11), axis.title.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
 
 "Threshold framework predictions plot"
 thresh.plot.sr <- ggplot(steering.preds.sr %>%
