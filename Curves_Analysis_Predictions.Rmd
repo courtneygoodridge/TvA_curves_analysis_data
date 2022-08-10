@@ -51,6 +51,9 @@ library(readr)
 
 if(!require(rmarkdown)) install.packages("rmarkdown")
 library(rmarkdown)
+
+if(!require(simr)) install.packages("simr")
+library(simr)
 ```
 
 ## Theme plot
@@ -347,12 +350,12 @@ for (i in 1:9){
 
 "0 m starting position condition for each radius - lateral position error and visual angle"
 ggplot(latency.df %>%
-         dplyr::filter(startingpos == 0, timestamp <= 3.5), mapping = aes(x = timestamp, y = steeringbias, col = as.factor(radius.x))) +
+         dplyr::filter(timestamp < 3.5), mapping = aes(x = timestamp, y = steeringbias, col = as.factor(radius.x))) +
   geom_line() +
   facet_wrap(~ startingpos)
 
 ggplot(latency.df %>%
-         dplyr::filter(startingpos == 0, timestamp <= 3.5), mapping = aes(x = timestamp, y = visangle, col = as.factor(radius.x))) +
+         dplyr::filter(timestamp < 3.5), mapping = aes(x = timestamp, y = visangle, col = as.factor(radius.x))) +
   geom_line() +
   facet_wrap(~ startingpos)
 ```

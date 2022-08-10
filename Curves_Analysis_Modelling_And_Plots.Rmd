@@ -71,6 +71,9 @@ library(data.table)
 
 if(!require(readr)) install.packages("readr")
 library(readr)
+
+if(!require(simr)) install.packages("simr")
+library(simr)
 ```
 
 ## Load in processed data
@@ -601,6 +604,18 @@ stargazer(invgaus.rt.no.correlation, type = "text",
           title = "Fixed effects",
           out = here::here("TvA_curves_analysis_data/Plots/rt.table1.html")
           )
+```
+
+power analysis
+
+
+```{r}
+
+fixef(invgaus.rt)['radius_scaled:startingpos_scaled'] <- .003
+
+powerSim(invgaus.rt, test = fixed('radius_scaled:startingpos_scaled'))
+
+
 ```
 
 ## Modelling lateral position errors - Table 2
