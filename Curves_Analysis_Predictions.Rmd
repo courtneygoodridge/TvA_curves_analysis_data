@@ -358,6 +358,11 @@ ggplot(latency.df %>%
          dplyr::filter(timestamp < 3.5), mapping = aes(x = timestamp, y = visangle, col = as.factor(radius.x))) +
   geom_line() +
   facet_wrap(~ startingpos)
+
+ggplot(latency.df %>%
+         dplyr::filter(timestamp < 2.5), mapping = aes(x = timestamp, y = visangle.diff, col = as.factor(radius.x))) +
+  geom_path() +
+  facet_wrap(~ startingpos)
 ```
 
 ## Reaction time predictions for Accumulator and Threshold frameworks
@@ -370,11 +375,11 @@ df_accum <- data.frame()
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  for (a in c(3)){
+  for (a in c(.3)){
       
     latencies_tmp <- latencies_tmp %>%
       dplyr::filter(timestamp <= 3) %>%
-      dplyr::mutate(accum = cumsum(visangle)) %>%
+      dplyr::mutate(accum = cumsum(visangle.diff)) %>%
       dplyr::filter(accum > a) %>%
       dplyr::mutate(threshold = a)
       
@@ -392,11 +397,11 @@ df_thresh <- data.frame()
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  for (a in c(.9)){
+  for (a in c(.011)){
       
     latencies_tmp <- latencies_tmp %>%
       dplyr::filter(timestamp <= 3.5) %>%
-      dplyr::filter(visangle > a) %>%
+      dplyr::filter(visangle.diff > a) %>%
       dplyr::mutate(threshold = a)
     
     latencies.coords.tmp <- latencies_tmp[10,]
