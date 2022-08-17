@@ -9,11 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### 
+### Error accumulation when steering toward curves - Pre-processing
 
 This analysis script is the paper entitled "Error accumulation when steering toward curves". Please copy or clone the TvA_curves_analysis_data folder in your working directory. To find your working directory, run the *getwd()* function in the R command line. 
 
-Following this, run each chunk of code individually. The main data file (overall.dat.csv) is alreayd processed and is generated from this script. I only include this file for completeness. The main analysis and figure plotting can done from the Curves_Analysis_Modelling_And_Plots.Rmd.
+Following this, run each chunk of code individually. The main data file (overall.dat.csv) is already processed and is generated from this script. I only include this file for completeness. The main analysis and figure plotting can done from the Curves_Analysis_Modelling_And_Plots.Rmd.
 
 ## Load packages
 
@@ -110,22 +110,6 @@ dat_new <- dat %>%
                                  str_detect(ppid, "lot_8") ~ 8)) %>%
   dplyr::bind_rows(dat_9, dat_10, dat_11, dat_12) %>%
   dplyr::mutate(ppid_trialn = paste(trialn, pNum, radius, startingpos,  sep = "_"))
-```
-
-## Total number of trials
-
-used to calculate percentage of trials per condition
-
-```{r}
-total.trials <- dat_new %>%
-  dplyr::group_by(ppid_trialn) %>%
-  dplyr::slice(1) %>%
-  dplyr::ungroup() %>%
-  dplyr::filter(radius != -1) %>%
-  dplyr::group_by(radius, startingpos) %>%
-  dplyr::summarise(total = n())
-
-write.csv(total.trials, file = here::here("TvA_curves_analysis_data/Participant_Data/total_trials.csv"))
 ```
 
 ## Mirroring directional variables, smoothing steering repsonses, and recentre origin of X and Z coordinates

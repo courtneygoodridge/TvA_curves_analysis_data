@@ -9,6 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### Error accumulation when steering toward curves - Modelling and plots 
+
+This analysis script is the paper entitled "Error accumulation when steering toward curves". Please copy or clone the TvA_curves_analysis_data folder in your working directory. To find your working directory, run the *getwd()* function in the R command line. 
+
+This script produces figures for the manuscript and multilevel models for reaction time, lateral position error, and steering magnitude.
+
 ## Packages 
 
 ```{r}
@@ -325,7 +331,7 @@ acc.plot.sr <- ggplot(df_accum, mapping = aes(x = radius.x, y = steering_rate, l
   theme(legend.position = c(.60, .85), legend.key.height = unit(0, 'cm'), legend.key.width = unit(0.5, 'cm'), legend.key = element_blank(), strip.text.x = element_blank(), panel.spacing = unit(2, "lines"), legend.spacing.y = unit(0.1, "cm"), legend.margin = margin(0.05,0.05,0,0, unit = "cm"), legend.key.size = unit(0, 'cm'), plot.title = element_text(size = 12, face = "bold"), axis.text.x = element_text(size = 11), axis.title.x = element_text(size = 11), axis.title.y = element_text(size = 11), title = element_text(size = 7), legend.title = element_text(size = 10), legend.text = element_text(size = 10), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_line(arrow = grid::arrow(length = unit(0.4, "cm"), ends = "last")))
 
 "Threshold framework predictions plot"
-thresh.plot.sr <- ggplot(steering.preds.sr %>%
+thresh.plot.sr <- ggplot(thresh.steering %>%
                         dplyr::filter(model == "threshold"), mapping = aes(x = radii, y = steering_rate, linetype = as.factor(startingpos))) +
   geom_line() +
   scale_x_continuous(breaks = c(1000, 1500, 2000), limits = c(900, 2100)) +
@@ -604,18 +610,6 @@ stargazer(invgaus.rt.no.correlation, type = "text",
           title = "Fixed effects",
           out = here::here("TvA_curves_analysis_data/Plots/rt.table1.html")
           )
-```
-
-power analysis
-
-
-```{r}
-
-fixef(invgaus.rt)['radius_scaled:startingpos_scaled'] <- .003
-
-powerSim(invgaus.rt, test = fixed('radius_scaled:startingpos_scaled'))
-
-
 ```
 
 ## Modelling lateral position errors - Table 2

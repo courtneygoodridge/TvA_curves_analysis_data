@@ -7,6 +7,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### Error accumulation when steering toward curves - Predictions
+
+This analysis script is the paper entitled "Error accumulation when steering toward curves". Please copy or clone the TvA_curves_analysis_data folder in your working directory. To find your working directory, run the *getwd()* function in the R command line. 
+
+This script produces Threshold and Accumulator predictions. Visual angle is calculated between their current direction and a point 10 m ahead on the road-line through the curve. Visual angle is then accumulated and reaction times/lateral position errors are selected when the accumulated value surpasses a fixed "decision boundary". For the Threshold predictions, the non-accumulated visual angle is used and reaction times and lateral position errors are selected when it surpasses a fixed threshold value. 
+
 ## Load packages
 
 ```{r}
@@ -67,7 +73,7 @@ panel.background = element_blank(), axis.line = element_line(colour = "black"))
 
 ## Load data
 
-Simulation of driver travelling across the z axis (straight ahead) for 0, 4 and 8 m starting position. 
+Simulation of driver travelling across the z axis (straight ahead) for 0, 4 and 8 m starting position.
 
 ```{r}
 "load coordinates"
@@ -316,7 +322,7 @@ steering <- list(midline_1000.0, midline_1000.4, midline_1000.8, midline_1500.0,
 
 ## Caclualate lateral position and visual angle for straight line sim relative to various radii curves
 
-Visual angle and lateral position error are equivlent, however steering bias does increase at a faster rate than visual angle initially, and this is exacerbated for larger radii curves. Hence when using visual angle as perceptual input for the Threshold framework, we might expect slightly larger lateral position errors. 
+Visual angle and lateral position error are equivlent, however steering bias does increase at a faster rate than visual angle initially, and this is exacerbated for larger radii curves. Hence when using visual angle as perceptual input for the Threshold framework, we might expect slightly larger lateral position errors for larger radii curves. 
 .
 ```{r}
 "create empty list for dataframes"
@@ -358,11 +364,6 @@ ggplot(latency.df %>%
          dplyr::filter(timestamp < 3.5), mapping = aes(x = timestamp, y = visangle, col = as.factor(radius.x))) +
   geom_line() +
   facet_wrap(~ startingpos)
-
-ggplot(latency.df %>%
-         dplyr::filter(timestamp < 2.5), mapping = aes(x = timestamp, y = visangle.diff, col = as.factor(radius.x))) +
-  geom_path() +
-  facet_wrap(~ startingpos)
 ```
 
 ## Reaction time predictions for Accumulator and Threshold frameworks
@@ -375,11 +376,11 @@ df_accum <- data.frame()
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  for (a in c(.3)){
+  for (a in c(3)){
       
     latencies_tmp <- latencies_tmp %>%
       dplyr::filter(timestamp <= 3) %>%
-      dplyr::mutate(accum = cumsum(visangle.diff)) %>%
+      dplyr::mutate(accum = cumsum(visangle)) %>%
       dplyr::filter(accum > a) %>%
       dplyr::mutate(threshold = a)
       
@@ -397,11 +398,11 @@ df_thresh <- data.frame()
 for (i in 1:9){
   latencies_tmp <- as.data.frame(latency.list[i])
   
-  for (a in c(.011)){
+  for (a in c(.9)){
       
     latencies_tmp <- latencies_tmp %>%
       dplyr::filter(timestamp <= 3.5) %>%
-      dplyr::filter(visangle.diff > a) %>%
+      dplyr::filter(visangle > a) %>%
       dplyr::mutate(threshold = a)
     
     latencies.coords.tmp <- latencies_tmp[10,]
