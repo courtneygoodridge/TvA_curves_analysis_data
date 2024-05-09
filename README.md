@@ -2,7 +2,7 @@
 
 This repo contains the data and analysis scripts for the following paper:
 
-**If you using any elements of this repository, please cite**: Goodridge, C. M., Billington, J., Markkula, G., & Wilkie, R. M. (2023). Error accumulation when steering toward curves. Journal of experimental psychology: human perception and performance, 49(6), 821.
+Goodridge, C. M., Billington, J., Markkula, G., & Wilkie, R. M. (2023). Error accumulation when steering toward curves. Journal of experimental psychology: human perception and performance, 49(6), 821.
 
 This has been accepted and is currently in press in the Journal of Experimental Psychology: Human Perception and Performance.
 
